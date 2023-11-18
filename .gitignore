@@ -1,0 +1,18 @@
+# VSCode files
+.vscode/
+
+# C/C++ compiled files
+*.out
+*.o
+*.a
+
+# Compiled
+coarsegrain_mmparallel
+finegrain_mmparallel
+matmulseq_file
+
+# Compiled
+*.exe
+*.so
+*.dll
+*.pyc

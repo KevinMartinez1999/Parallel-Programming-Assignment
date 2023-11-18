@@ -80,7 +80,7 @@ int main(void) {
 
 		// printf("Multiplying two matrices...\n"); //Remove this line for performance tests
 		mm();
-		printResult(); //Remove this line for performance tests
+		// printResult(); //Remove this line for performance tests
 	}
 	fclose(fh);
 

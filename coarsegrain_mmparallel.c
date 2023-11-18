@@ -183,15 +183,15 @@ void *mm(void *data)
             }
         }
 
-        // Show the result of the multiplication
-        for (i = 0; i < matrixSize; i++)
-        {
-            for (j = 0; j < matrixSize; j++)
-            {
-                printf("%lf ", c[i][j]);
-            }
-            printf("\n");
-        }
+        // // Show the result of the multiplication
+        // for (i = 0; i < matrixSize; i++)
+        // {
+        //     for (j = 0; j < matrixSize; j++)
+        //     {
+        //         printf("%lf ", c[i][j]);
+        //     }
+        //     printf("\n");
+        // }
     }
 
     pthread_exit(NULL);
