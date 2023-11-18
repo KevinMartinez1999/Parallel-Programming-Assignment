@@ -1,188 +1,198 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <pthread.h>
 
 #define NUM_THREADS 20
 
-int matrixSize;
-
 static pthread_mutex_t mutex;
 
-typedef struct
-{
-	double **a;
-	double **b;
-	double **c;
-} ThreadDataMatrix;
+int matrixSize;
 
 typedef struct
 {
-	int thread_id;
-	int start;
-	int end;
-} ThreadDataRange;
+    double **a;
+    double **b;
+    double **c;
+} ThreadArgs;
 
-ThreadDataMatrix *thread_data_matrix;
+typedef struct
+{
+    int thread_id;
+    int start;
+    int end;
+} ThreadRange;
+
+ThreadArgs *thread_args;
+
+double **allocateMatrix();
+void *mm(void *data);
+
+int main(void)
+{
+    clock_t start = clock();
+
+    int i, j;
+    int nmats;
+    int nthreads = NUM_THREADS;
+    char *fname = "matrices_large.dat";
+    FILE *fh;
+
+    fh = fopen(fname, "r");
+    if (fh == NULL)
+    {
+        printf("Error opening file %s\n", fname);
+        exit(1);
+    }
+
+    fscanf(fh, "%d %d\n", &nmats, &matrixSize);
+
+    if (nthreads > nmats)
+    {
+        nthreads = nmats;
+    }
+
+    pthread_t threads[nthreads];
+    int rc;
+    long t;
+
+    ThreadRange thread_ranges[nthreads];
+    thread_args = (ThreadArgs *)malloc(sizeof(ThreadArgs) * nmats);
+
+    for (t = 0; t < nmats; t++)
+    {
+        double **a = allocateMatrix();
+        double **b = allocateMatrix();
+        double **c = allocateMatrix();
+
+        // Read the a, b matrices from file
+        for (i = 0; i < matrixSize; i++)
+        {
+            for (j = 0; j < matrixSize; j++)
+            {
+                fscanf(fh, "%lf", &a[i][j]);
+            }
+        }
+        for (i = 0; i < matrixSize; i++)
+        {
+            for (j = 0; j < matrixSize; j++)
+            {
+                fscanf(fh, "%lf", &b[i][j]);
+            }
+        }
+
+        thread_args[t].a = a;
+        thread_args[t].b = b;
+        thread_args[t].c = c;
+    }
+
+    fclose(fh);
+
+    int n_op_per_thread = nmats / nthreads;
+    int op_remainder = nmats % nthreads;
+
+    // Create threads
+    for (t = 0; t < nthreads; t++)
+    {
+        thread_ranges[t].thread_id = t;
+        thread_ranges[t].start = t * n_op_per_thread;
+        thread_ranges[t].end = (t + 1) * n_op_per_thread - 1;
+
+        if (t == nthreads - 1)
+        {
+            thread_ranges[t].end += op_remainder;
+        }
+
+        rc = pthread_create(&threads[t], NULL, mm, (void *)&thread_ranges[t]);
+        if (rc)
+        {
+            printf("ERROR; return code from pthread_create() is %d\n", rc);
+            exit(-1);
+        }
+    }
+
+    // Join threads
+    for (t = 0; t < nthreads; t++)
+    {
+        rc = pthread_join(threads[t], NULL);
+        if (rc)
+        {
+            printf("ERROR; return code from pthread_join() is %d\n", rc);
+            exit(-1);
+        }
+    }
+
+    // Free memory
+    free(thread_args);
+
+    clock_t end = clock();
+    double elapsed_time = ((double)(end - start)) * 1000.0 / CLOCKS_PER_SEC;
+    printf("%f\n", elapsed_time);
+
+    pthread_exit(NULL);
+
+    return 0;
+}
 
 double **allocateMatrix()
 {
-	int i;
-	double *vals, **temp;
+    int i;
+    double *vals, **temp;
 
-	// allocate space for values of a matrix
-	vals = (double *)malloc(matrixSize * matrixSize * sizeof(double));
+    // allocate space for values of a matrix
+    vals = (double *)malloc(matrixSize * matrixSize * sizeof(double));
 
-	// allocate vector of pointers to create the 2D array
-	temp = (double **)malloc(matrixSize * sizeof(double *));
+    // allocate vector of pointers to create the 2D array
+    temp = (double **)malloc(matrixSize * sizeof(double *));
 
-	for (i = 0; i < matrixSize; i++)
-		temp[i] = &(vals[i * matrixSize]);
+    // initialize pointers to rows
+    for (i = 0; i < matrixSize; i++)
+        temp[i] = &(vals[i * matrixSize]);
 
-	return temp;
+    return temp;
 }
 
 void *mm(void *data)
 {
-	// Obtener los datos del hilo
-	ThreadDataRange *thread_data_range = (ThreadDataRange *)data;
+    // Get the thread arguments
+    ThreadRange *thread_range = (ThreadRange *)data;
 
-	int i, j, k, l;
-	double sum;
+    int i, j, k, x;
+    double sum;
 
-	for (l = thread_data_range->start; l <= thread_data_range->end; l++)
-	{
-		// Multiplicación de matrices
-		for (i = 0; i < matrixSize; i++)
-		{
-			for (j = 0; j < matrixSize; j++)
-			{
-				sum = 0.0;
-				// Producto punto
-				for (k = 0; k < matrixSize; k++)
-				{
-					sum = sum + thread_data_matrix[l].a[i][k] * thread_data_matrix[l].b[k][j];
+    for (x = thread_range->start; x <= thread_range->end; x++)
+    {
+        pthread_mutex_lock(&mutex);
+        double **a = thread_args[x].a;
+        double **b = thread_args[x].b;
+        double **c = thread_args[x].c;
+        pthread_mutex_unlock(&mutex);
 
-				}
-				thread_data_matrix[l].c[i][j] = sum;
-			}
-		}
+        // matrix multiplication
+        for (i = 0; i < matrixSize; i++)
+        {
+            for (j = 0; j < matrixSize; j++)
+            {
+                sum = 0.0;
+                // dot product
+                for (k = 0; k < matrixSize; k++)
+                {
+                    sum = sum + a[i][k] * b[k][j];
+                }
+                c[i][j] = sum;
+            }
+        }
 
-		// pthread_mutex_lock(&mutex);
-		// // Mostrar el resultado de la multiplicación
-		// for (i = 0; i < matrixSize; i++)
-		// {
-		// 	for (j = 0; j < matrixSize; j++)
-		// 	{
-		// 		printf("%lf ", thread_data_matrix[l].c[i][j]);
-		// 	}
-		// 	printf("\n");
-		// }
-		// pthread_mutex_unlock(&mutex);
-	}
+        // Show the result of the multiplication
+        for (i = 0; i < matrixSize; i++)
+        {
+            for (j = 0; j < matrixSize; j++)
+            {
+                printf("%lf ", c[i][j]);
+            }
+            printf("\n");
+        }
+    }
 
-	pthread_exit(NULL);
-}
-
-int main(void)
-{
-	clock_t start_time = clock();
-	int i, j;
-	int nmats;
-	int nthreads = NUM_THREADS;
-	char *fname = "matrices_large.dat";
-	FILE *fp;
-
-	fp = fopen(fname, "r");
-	if (fp == NULL)
-	{
-		printf("Could not open file %s\n", fname);
-		exit(1);
-	}
-	fscanf(fp, "%d %d\n", &nmats, &matrixSize);
-
-	if (NUM_THREADS > nmats)
-	{
-		nthreads = nmats;
-	}
-
-	// printf("Number of matrices: %d\n", nmats);
-	// printf("Matrix size: %d\n", matrixSize);
-
-	pthread_t threads[nthreads];
-	int rc;
-	long t;
-
-	ThreadDataRange thread_data_range[nthreads];
-
-	thread_data_matrix = (ThreadDataMatrix *)malloc(nmats * sizeof(ThreadDataMatrix));
-
-	double **a, **b, **c;
-	a = allocateMatrix();
-	b = allocateMatrix();
-	c = allocateMatrix();
-
-	for (t = 0; t < nmats; t++)
-	{
-
-		for (i = 0; i < matrixSize; i++)
-		{
-			for (j = 0; j < matrixSize; j++)
-			{
-				fscanf(fp, "%lf", &a[i][j]);
-			}
-		}
-		for (i = 0; i < matrixSize; i++)
-		{
-			for (j = 0; j < matrixSize; j++)
-			{
-				fscanf(fp, "%lf", &b[i][j]);
-			}
-		}
-
-		thread_data_matrix[t].a = a;
-		thread_data_matrix[t].b = b;
-		thread_data_matrix[t].c = c;
-	}
-
-	for (t = 0; t < nthreads; t++)
-	{
-		thread_data_range[t].thread_id = t;
-		thread_data_range[t].start = t * (nmats / nthreads);
-		thread_data_range[t].end = (t + 1) * (nmats / nthreads) - 1;
-
-		// El último hilo se encarga de las sumas restantes si num_sumas no es divisible por num_hilos
-		if (t == nthreads - 1 && nmats % nthreads != 0)
-		{
-			thread_data_range[t].end += nmats % nthreads;
-		}
-
-		rc = pthread_create(&threads[t], NULL, mm, (void *)&thread_data_range[t]);
-		if (rc)
-		{
-			printf("ERROR; return code from pthread_create() is %d\n", rc);
-			exit(-1);
-		}
-	}
-
-	// Esperar a que todos los hilos terminen
-	for (t = 0; t < nthreads; t++)
-	{
-		pthread_join(threads[t], NULL);
-	}
-
-	// free memory
-	free(*a);
-	free(a);
-	free(*b);
-	free(b);
-	free(*c);
-	free(c);
-
-	fclose(fp);
-
-	clock_t end_time = clock();
-	double elapsed_time = ((double)(end_time - start_time)) * 1000.0 / CLOCKS_PER_SEC;
-	printf("Tiempo de ejecución: %f milisegundos\n", elapsed_time);
-
-	pthread_exit(NULL);
+    pthread_exit(NULL);
 }

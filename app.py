@@ -18,7 +18,7 @@ def ejecutar_comando_n_veces(comando, n):
 
 # Ejemplo de uso
 comando = "./matmulseq_file"
-n = 10
+n = 200
 arreglo_salida = []
 ejecutar_comando_n_veces(comando, n)
 # Guardar el arreglo en un archivo de texto
@@ -27,4 +27,5 @@ with open("salida.txt", 'w') as file:
         file.write(salida)
 
 a = np.loadtxt("salida.txt")
-print("El promedio de los tiempos de ejecución es: ", np.mean(a), "segundos")
+print("El promedio de los tiempos de ejecución es: ", np.mean(a), "milisegundos")
+os.remove("salida.txt")
