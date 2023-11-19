@@ -17,15 +17,19 @@ def ejecutar_comando_n_veces(comando, n):
         os.remove(archivo_salida)
 
 # Ejemplo de uso
-comando = "./matmulseq_file"
+# comando = "./matmulseq_file "
+comando = "./coarsegrain_mmparallel "
 n = 200
 arreglo_salida = []
-ejecutar_comando_n_veces(comando, n)
-# Guardar el arreglo en un archivo de texto
-with open("salida.txt", 'w') as file:
-    for salida in arreglo_salida:
-        file.write(salida)
-
-a = np.loadtxt("salida.txt")
-print("El promedio de los tiempos de ejecución es: ", np.mean(a), "milisegundos")
-os.remove("salida.txt")
+aux = []
+for i in range(32):
+    ncomando = comando + str(i + 1)
+    print(ncomando)
+    ejecutar_comando_n_veces(ncomando, n)
+    with open("salida.txt", 'w') as file:
+        for salida in arreglo_salida:
+            file.write(salida)
+    a = np.loadtxt("salida.txt")
+    aux.append(np.mean(a))
+    os.remove("salida.txt")
+np.savetxt("salida_coarsegrain.txt", aux)

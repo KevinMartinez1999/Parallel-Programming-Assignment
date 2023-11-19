@@ -48,7 +48,7 @@ void printResult(void){
 	}
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
 	clock_t start = clock();
 	int i, j, k;
 	int nmats;

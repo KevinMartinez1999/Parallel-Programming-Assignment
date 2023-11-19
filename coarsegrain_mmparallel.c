@@ -3,8 +3,6 @@
 #include <time.h>
 #include <pthread.h>
 
-#define NUM_THREADS 20
-
 static pthread_mutex_t mutex;
 
 int matrixSize;
@@ -28,13 +26,21 @@ ThreadArgs *thread_args;
 double **allocateMatrix();
 void *mm(void *data);
 
-int main(void)
+int main(int argc, char *argv[])
 {
+    if (argc != 2)
+    {
+        printf("Usage: %s <matrix_size>\n", argv[0]);
+        exit(1);
+    }
+
+    char *param = argv[1];
+    int nthreads = atoi(param);
+
     clock_t start = clock();
 
     int i, j;
     int nmats;
-    int nthreads = NUM_THREADS;
     char *fname = "matrices_large.dat";
     FILE *fh;
 
