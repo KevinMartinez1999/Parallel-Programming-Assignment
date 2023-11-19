@@ -199,6 +199,7 @@ void *mm(void *data)
 
 // Show the result of the multiplication in debug mode
 #ifdef DEBUG_MODE
+        pthread_mutex_lock(&mutex);
         for (i = 0; i < matrixSize; i++)
         {
             for (j = 0; j < matrixSize; j++)
@@ -208,6 +209,7 @@ void *mm(void *data)
             printf("\n");
         }
         printf("\n");
+        pthread_mutex_unlock(&mutex);
 #endif
     }
 

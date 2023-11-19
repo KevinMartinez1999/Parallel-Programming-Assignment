@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
     int i, j, k;
     int nmats;
-    char *fname = "matrices_dev.dat";
+    char *fname = "matrices_large.dat";
     FILE *fh;
 
     fh = fopen(fname, "r");
@@ -68,11 +68,6 @@ int main(int argc, char *argv[])
         nthreads = nmats;
     }
 
-    // Allocate matrices
-    double **a = allocateMatrix();
-    double **b = allocateMatrix();
-    double **c = allocateMatrix();
-
     ThreadData thread_data[nthreads];
     thread_args = (ThreadArgs *)malloc(nmats * sizeof(ThreadArgs));
 
@@ -82,6 +77,11 @@ int main(int argc, char *argv[])
     // read matrices from file
     for (k = 0; k < nmats; k++)
     {
+        // Allocate matrices
+        double **a = allocateMatrix();
+        double **b = allocateMatrix();
+        double **c = allocateMatrix();
+
         pthread_t threads[nthreads];
         int rc;
         int t;
@@ -139,17 +139,15 @@ int main(int argc, char *argv[])
 
     fclose(fh);
 
-    // Imprime la matriz 0 d ela estructura de datos
-    printResult(0);
+#ifdef DEBUG_MODE
+    for (k = 0; k < nmats; k++)
+    {
+        printResult(k);
+    }
+#endif
 
     // Free memory
     free(thread_args);
-    free(*a);
-    free(a);
-    free(*b);
-    free(b);
-    free(*c);
-    free(c);
 
     clock_t end = clock();
     double elapsed_time = ((double)(end - start)) * 1000.0 / CLOCKS_PER_SEC;
@@ -192,6 +190,7 @@ void printResult(int current_matrix)
         }
         printf("\n");
     }
+    printf("\n");
     pthread_mutex_unlock(&mutex);
 }
 
@@ -200,17 +199,17 @@ void *mm(void *data)
     // Extract thread data
     ThreadData *thread_data = (ThreadData *)data;
 
-    pthread_mutex_lock(&mutex);
-    double **aa, **bb, **cc;
-    aa = thread_args[thread_data->current_matrix].a;
-    bb = thread_args[thread_data->current_matrix].b;
-    cc = thread_args[thread_data->current_matrix].c;
-    pthread_mutex_unlock(&mutex);
-
     int i, j, k;
 
     for (k = thread_data->start; k <= thread_data->end; k++)
     {
+        pthread_mutex_lock(&mutex);
+        double **aa, **bb, **cc;
+        aa = thread_args[thread_data->current_matrix].a;
+        bb = thread_args[thread_data->current_matrix].b;
+        cc = thread_args[thread_data->current_matrix].c;
+        pthread_mutex_unlock(&mutex);
+
         // Extrae la fila k de la matriz a
         double *a = aa[k];
 
@@ -234,24 +233,12 @@ void *mm(void *data)
             // printf("%lf ", sum);
             cc[k][i] = sum;
         }
-    }
-    pthread_mutex_lock(&mutex);
-#ifdef DEBUG_MODE
-    printf("Hola, soy el hilo %d y voy a multiplicar a la matriz %d desde %d hasta %d\n", thread_data->thread_id, thread_data->current_matrix, thread_data->start, thread_data->end);
 
-    // Mostrar la matriz cc en modo debug
-    for (k = 0; k < matrixSize; k++)
-    {
-        for (i = 0; i < matrixSize; i++)
-        {
-            printf("%lf ", cc[k][i]);
-        }
-        printf("\n");
+        // Guardar cc en la estructura de datos global
+        pthread_mutex_lock(&mutex);
+        thread_args[thread_data->current_matrix].c = cc;
+        pthread_mutex_unlock(&mutex);
     }
-#endif
-    // Guardar cc en la estructura de datos
-    thread_args[thread_data->current_matrix].c = cc;
-    pthread_mutex_unlock(&mutex);
 
     pthread_exit(NULL);
 }
