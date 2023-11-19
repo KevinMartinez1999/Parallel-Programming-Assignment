@@ -3,6 +3,8 @@
 #include <time.h>
 #include <pthread.h>
 
+// #define DEBUG_MODE
+
 static pthread_mutex_t mutex;
 
 int matrixSize;
@@ -41,7 +43,7 @@ int main(int argc, char *argv[])
 
     int i, j;
     int nmats;
-    char *fname = "matrices_large.dat";
+    char *fname = "matrices_dev.dat";
     FILE *fh;
 
     fh = fopen(fname, "r");
@@ -52,6 +54,12 @@ int main(int argc, char *argv[])
     }
 
     fscanf(fh, "%d %d\n", &nmats, &matrixSize);
+
+// Mostrar numero de matrices y tamaño solo en modo debug
+#ifdef DEBUG_MODE
+    printf("Number of matrices: %d\n", nmats);
+    printf("Matrix size: %d\n", matrixSize);
+#endif
 
     if (nthreads > nmats)
     {
@@ -189,15 +197,18 @@ void *mm(void *data)
             }
         }
 
-        // // Show the result of the multiplication
-        // for (i = 0; i < matrixSize; i++)
-        // {
-        //     for (j = 0; j < matrixSize; j++)
-        //     {
-        //         printf("%lf ", c[i][j]);
-        //     }
-        //     printf("\n");
-        // }
+// Show the result of the multiplication in debug mode
+#ifdef DEBUG_MODE
+        for (i = 0; i < matrixSize; i++)
+        {
+            for (j = 0; j < matrixSize; j++)
+            {
+                printf("%lf ", c[i][j]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+#endif
     }
 
     pthread_exit(NULL);
