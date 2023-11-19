@@ -19,7 +19,7 @@ typedef struct
 typedef struct
 {
     int thread_id;
-    int nmatrix;
+    int current_matrix;
     int start;
     int end;
 } ThreadData;
@@ -29,42 +29,6 @@ ThreadArgs *thread_args;
 double **allocateMatrix();
 void printResult(int current_matrix);
 void *mm(void *data);
-
-void *mm2(void *data)
-{
-    ThreadData *thread_data = (ThreadData *)data;
-
-    int i, j, k;
-
-    for (k = thread_data->start; k <= thread_data->end; k++)
-    {
-        // Extrae la fila k de la matriz a
-        double *a = thread_args[thread_data->nmatrix].a[k];
-
-        // Extrae la columna k de la matriz b
-        double *b = (double *)malloc(matrixSize * sizeof(double));
-        for (i = 0; i < matrixSize; i++)
-        {
-            b[i] = thread_args[thread_data->nmatrix].b[i][k];
-        }
-
-        // Muestra las filas y columnas extraidas
-        printf("Thread %d: fila %d de a: ", thread_data->thread_id, k);
-        for (i = 0; i < matrixSize; i++)
-        {
-            printf("%lf ", a[i]);
-        }
-        printf("\n");
-
-        printf("Thread %d: columna %d de b: ", thread_data->thread_id, k);
-        for (i = 0; i < matrixSize; i++)
-        {
-            printf("%lf ", b[i]);
-        }
-        printf("\n");
-    }
-
-}
 
 int main(int argc, char *argv[])
 {
@@ -104,9 +68,10 @@ int main(int argc, char *argv[])
         nthreads = nmats;
     }
 
-    pthread_t threads[nthreads];
-    int rc;
-    int t;
+    // Allocate matrices
+    double **a = allocateMatrix();
+    double **b = allocateMatrix();
+    double **c = allocateMatrix();
 
     ThreadData thread_data[nthreads];
     thread_args = (ThreadArgs *)malloc(nmats * sizeof(ThreadArgs));
@@ -117,9 +82,9 @@ int main(int argc, char *argv[])
     // read matrices from file
     for (k = 0; k < nmats; k++)
     {
-        double **a = allocateMatrix();
-        double **b = allocateMatrix();
-        double **c = allocateMatrix();
+        pthread_t threads[nthreads];
+        int rc;
+        int t;
 
         for (i = 0; i < matrixSize; i++)
         {
@@ -145,17 +110,28 @@ int main(int argc, char *argv[])
             thread_data[t].thread_id = t;
             thread_data[t].start = t * n_row_per_thread;
             thread_data[t].end = (t + 1) * n_row_per_thread - 1;
-            thread_data[t].nmatrix = k;
+            thread_data[t].current_matrix = k;
 
             if (t == nthreads - 1)
             {
                 thread_data[t].end += row_remiander;
             }
 
-            rc = pthread_create(&threads[t], NULL, mm2, (void *)&thread_data[t]);
+            rc = pthread_create(&threads[t], NULL, mm, (void *)&thread_data[t]);
             if (rc)
             {
                 printf("ERROR; return code from pthread_create() is %d\n", rc);
+                exit(1);
+            }
+        }
+
+        // Join threads
+        for (t = 0; t < nthreads; t++)
+        {
+            rc = pthread_join(threads[t], NULL);
+            if (rc)
+            {
+                printf("ERROR; return code from pthread_join() is %d\n", rc);
                 exit(1);
             }
         }
@@ -163,26 +139,17 @@ int main(int argc, char *argv[])
 
     fclose(fh);
 
-    // Join threads
-    for (t = 0; t < nthreads; t++)
-    {
-        rc = pthread_join(threads[t], NULL);
-        if (rc)
-        {
-            printf("ERROR; return code from pthread_join() is %d\n", rc);
-            exit(1);
-        }
-    }
-
-#ifdef DEBUG_MODE
-    for (k = 0; k < nmats; k++)
-    {
-        printResult(k);
-    }
-#endif
+    // Imprime la matriz 0 d ela estructura de datos
+    printResult(0);
 
     // Free memory
     free(thread_args);
+    free(*a);
+    free(a);
+    free(*b);
+    free(b);
+    free(*c);
+    free(c);
 
     clock_t end = clock();
     double elapsed_time = ((double)(end - start)) * 1000.0 / CLOCKS_PER_SEC;
@@ -234,32 +201,57 @@ void *mm(void *data)
     ThreadData *thread_data = (ThreadData *)data;
 
     pthread_mutex_lock(&mutex);
-    double **a = thread_args[thread_data->nmatrix].a;
-    double **b = thread_args[thread_data->nmatrix].b;
-    double **c = thread_args[thread_data->nmatrix].c;
+    double **aa, **bb, **cc;
+    aa = thread_args[thread_data->current_matrix].a;
+    bb = thread_args[thread_data->current_matrix].b;
+    cc = thread_args[thread_data->current_matrix].c;
     pthread_mutex_unlock(&mutex);
 
     int i, j, k;
-    double sum;
 
     for (k = thread_data->start; k <= thread_data->end; k++)
     {
-        // Multiplica la fila k de la matriz a por la columna k de la matriz b
+        // Extrae la fila k de la matriz a
+        double *a = aa[k];
+
+        // Crea un vector con la columna i de la matriz b
+        double *b = (double *)malloc(matrixSize * sizeof(double));
+
         for (i = 0; i < matrixSize; i++)
         {
-            sum = 0.0;
+            // Extrae la columna i de la matriz b
             for (j = 0; j < matrixSize; j++)
             {
-                sum = sum + a[k][j] * b[j][i];
+                b[j] = bb[j][i];
             }
-            c[k][i] = sum;
-        }
 
-        // LLeva c a la estrutura de datos global
-        pthread_mutex_lock(&mutex);
-        thread_args[thread_data->nmatrix].c = c;
-        pthread_mutex_unlock(&mutex);
+            // Multiplica la fila k de a por la columna i de b
+            double sum = 0.0;
+            for (j = 0; j < matrixSize; j++)
+            {
+                sum += a[j] * b[j];
+            }
+            // printf("%lf ", sum);
+            cc[k][i] = sum;
+        }
     }
+    pthread_mutex_lock(&mutex);
+#ifdef DEBUG_MODE
+    printf("Hola, soy el hilo %d y voy a multiplicar a la matriz %d desde %d hasta %d\n", thread_data->thread_id, thread_data->current_matrix, thread_data->start, thread_data->end);
+
+    // Mostrar la matriz cc en modo debug
+    for (k = 0; k < matrixSize; k++)
+    {
+        for (i = 0; i < matrixSize; i++)
+        {
+            printf("%lf ", cc[k][i]);
+        }
+        printf("\n");
+    }
+#endif
+    // Guardar cc en la estructura de datos
+    thread_args[thread_data->current_matrix].c = cc;
+    pthread_mutex_unlock(&mutex);
 
     pthread_exit(NULL);
 }
