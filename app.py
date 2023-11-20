@@ -18,10 +18,14 @@ def ejecutar_comando_n_veces(comando, n):
 
 # Ejemplo de uso
 # comando = "./matmulseq_file "
-comando = "./coarsegrain_mmparallel "
+# comando = "./coarsegrain_mmparallel "
+comando = "./finegrain_mmparallel "
 n = 200
 arreglo_salida = []
 aux = []
+ejecutar_comando_n_veces("./finegrain_mmparallel 10", 2600)
+
+# A partir de aqui empieza a guardar los datos en un arreglo
 for i in range(32):
     ncomando = comando + str(i + 1)
     print(ncomando)
@@ -32,4 +36,4 @@ for i in range(32):
     a = np.loadtxt("salida.txt")
     aux.append(np.mean(a))
     os.remove("salida.txt")
-np.savetxt("salida_coarsegrain.txt", aux)
+np.savetxt("salida_finegrain2.txt", aux)

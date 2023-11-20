@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 
     int i, j;
     int nmats;
-    char *fname = "matrices_dev.dat";
+    char *fname = "matrices_large.dat";
     FILE *fh;
 
     fh = fopen(fname, "r");

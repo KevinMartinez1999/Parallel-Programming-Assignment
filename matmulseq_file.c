@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define DEBUG_MODE
+// #define DEBUG_MODE
 
 double **a, **b, **c;
 int matrixSize;
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 	clock_t start = clock();
 	int i, j, k;
 	int nmats;
-	char *fname = "matrices_dev.dat"; // Change to matrices_large.dat for performance evaluation
+	char *fname = "matrices_large.dat"; // Change to matrices_large.dat for performance evaluation
 	FILE *fh;
 
 	// printf("Start\n");

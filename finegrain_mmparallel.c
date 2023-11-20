@@ -8,6 +8,7 @@
 static pthread_mutex_t mutex;
 
 int matrixSize;
+int nmats;
 
 typedef struct
 {
@@ -19,7 +20,6 @@ typedef struct
 typedef struct
 {
     int thread_id;
-    int current_matrix;
     int start;
     int end;
 } ThreadData;
@@ -44,7 +44,6 @@ int main(int argc, char *argv[])
     clock_t start = clock();
 
     int i, j, k;
-    int nmats;
     char *fname = "matrices_large.dat";
     FILE *fh;
 
@@ -68,6 +67,10 @@ int main(int argc, char *argv[])
         nthreads = nmats;
     }
 
+    pthread_t threads[nthreads];
+    int rc;
+    int t;
+
     ThreadData thread_data[nthreads];
     thread_args = (ThreadArgs *)malloc(nmats * sizeof(ThreadArgs));
 
@@ -81,10 +84,6 @@ int main(int argc, char *argv[])
         double **a = allocateMatrix();
         double **b = allocateMatrix();
         double **c = allocateMatrix();
-
-        pthread_t threads[nthreads];
-        int rc;
-        int t;
 
         for (i = 0; i < matrixSize; i++)
         {
@@ -104,40 +103,40 @@ int main(int argc, char *argv[])
         thread_args[k].a = a;
         thread_args[k].b = b;
         thread_args[k].c = c;
-
-        for (t = 0; t < nthreads; t++)
-        {
-            thread_data[t].thread_id = t;
-            thread_data[t].start = t * n_row_per_thread;
-            thread_data[t].end = (t + 1) * n_row_per_thread - 1;
-            thread_data[t].current_matrix = k;
-
-            if (t == nthreads - 1)
-            {
-                thread_data[t].end += row_remiander;
-            }
-
-            rc = pthread_create(&threads[t], NULL, mm, (void *)&thread_data[t]);
-            if (rc)
-            {
-                printf("ERROR; return code from pthread_create() is %d\n", rc);
-                exit(1);
-            }
-        }
-
-        // Join threads
-        for (t = 0; t < nthreads; t++)
-        {
-            rc = pthread_join(threads[t], NULL);
-            if (rc)
-            {
-                printf("ERROR; return code from pthread_join() is %d\n", rc);
-                exit(1);
-            }
-        }
     }
 
     fclose(fh);
+
+    // Create threads
+    for (t = 0; t < nthreads; t++)
+    {
+        thread_data[t].thread_id = t;
+        thread_data[t].start = t * n_row_per_thread;
+        thread_data[t].end = (t + 1) * n_row_per_thread - 1;
+
+        if (t == nthreads - 1)
+        {
+            thread_data[t].end += row_remiander;
+        }
+
+        rc = pthread_create(&threads[t], NULL, mm, (void *)&thread_data[t]);
+        if (rc)
+        {
+            printf("ERROR; return code from pthread_create() is %d\n", rc);
+            exit(1);
+        }
+    }
+
+    // Join threads
+    for (t = 0; t < nthreads; t++)
+    {
+        rc = pthread_join(threads[t], NULL);
+        if (rc)
+        {
+            printf("ERROR; return code from pthread_join() is %d\n", rc);
+            exit(1);
+        }
+    }
 
 #ifdef DEBUG_MODE
     for (k = 0; k < nmats; k++)
@@ -178,7 +177,7 @@ double **allocateMatrix()
 
 void printResult(int current_matrix)
 {
-    int i, j, k;
+    int i, k;
 
     pthread_mutex_lock(&mutex);
     double **c = thread_args[current_matrix].c;
@@ -199,46 +198,36 @@ void *mm(void *data)
     // Extract thread data
     ThreadData *thread_data = (ThreadData *)data;
 
-    int i, j, k;
+    int i, j, k, x;
 
-    for (k = thread_data->start; k <= thread_data->end; k++)
+    for (x = 0; x < nmats; x++)
     {
         pthread_mutex_lock(&mutex);
-        double **aa, **bb, **cc;
-        aa = thread_args[thread_data->current_matrix].a;
-        bb = thread_args[thread_data->current_matrix].b;
-        cc = thread_args[thread_data->current_matrix].c;
+        double **a = thread_args[x].a;
+        double **b = thread_args[x].b;
+        double **c = thread_args[x].c;
         pthread_mutex_unlock(&mutex);
 
-        // Extrae la fila k de la matriz a
-        double *a = aa[k];
-
-        // Crea un vector con la columna i de la matriz b
-        double *b = (double *)malloc(matrixSize * sizeof(double));
-
-        for (i = 0; i < matrixSize; i++)
+        // matrix multiplication
+        for (i = thread_data->start; i <= thread_data->end; i++)
         {
-            // Extrae la columna i de la matriz b
             for (j = 0; j < matrixSize; j++)
             {
-                b[j] = bb[j][i];
+                double sum = 0.0;
+                // dot product
+                for (k = 0; k < matrixSize; k++)
+                {
+                    sum = sum + a[i][k] * b[k][j];
+                }
+                c[i][j] = sum;
             }
-
-            // Multiplica la fila k de a por la columna i de b
-            double sum = 0.0;
-            for (j = 0; j < matrixSize; j++)
-            {
-                sum += a[j] * b[j];
-            }
-            // printf("%lf ", sum);
-            cc[k][i] = sum;
         }
 
         // Guardar cc en la estructura de datos global
         pthread_mutex_lock(&mutex);
-        thread_args[thread_data->current_matrix].c = cc;
+        thread_args[x].c = c;
         pthread_mutex_unlock(&mutex);
     }
 
-    pthread_exit(NULL);
+    return NULL;
 }
