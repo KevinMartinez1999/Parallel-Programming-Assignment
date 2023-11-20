@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-// #define DEBUG_MODE
+#define DEBUG_MODE
 
 double **a, **b, **c;
 int matrixSize;
@@ -45,17 +45,27 @@ void mm(void)
 		}
 	}
 }
-void printResult(void)
+void saveResult(void)
 {
-	int i, j;
-	for (i = 0; i < matrixSize; i++)
+	char filename[50];
+	sprintf(filename, "check_data/check.txt");
+	FILE *fh = fopen(filename, "a");
+	if (fh == NULL)
 	{
-		for (j = 0; j < matrixSize; j++)
-		{
-			printf("%lf ", c[i][j]);
-		}
-		printf("\n");
+		printf("Error opening file %s\n", filename);
+		exit(1);
 	}
+
+	for (int i = 0; i < matrixSize; i++)
+	{
+		for (int j = 0; j < matrixSize; j++)
+		{
+			fprintf(fh, "%f ", c[i][j]);
+		}
+		fprintf(fh, "\n");
+	}
+
+	fclose(fh);
 }
 
 int main(int argc, char *argv[])
@@ -70,6 +80,13 @@ int main(int argc, char *argv[])
 	fh = fopen(fname, "r");
 	// First line indicates how many pairs of matrices there are and the matrix size
 	fscanf(fh, "%d %d\n", &nmats, &matrixSize);
+
+#ifdef DEBUG_MODE
+	// Remover el archivo result.txt si existe
+	char filename[50];
+	sprintf(filename, "check_data/check.txt");
+	remove(filename);
+#endif
 
 	// Dynamically create matrices of the size needed
 	a = allocateMatrix();
@@ -96,8 +113,8 @@ int main(int argc, char *argv[])
 
 		mm();
 #ifdef DEBUG_MODE
-		printf("Multiplying two matrices...\n"); // Remove this line for performance tests
-		printResult();							 // Remove this line for performance tests
+		// Save result to file
+		saveResult();
 #endif
 	}
 	fclose(fh);

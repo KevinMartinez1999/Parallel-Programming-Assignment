@@ -16,3 +16,9 @@ matmulseq_file
 *.so
 *.dll
 *.pyc
+
+# Figures
+figures/
+
+# Check data
+check_data/

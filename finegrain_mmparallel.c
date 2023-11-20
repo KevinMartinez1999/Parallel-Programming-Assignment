@@ -3,7 +3,7 @@
 #include <time.h>
 #include <pthread.h>
 
-// #define DEBUG_MODE
+#define DEBUG_MODE
 
 static pthread_mutex_t mutex;
 
@@ -27,7 +27,7 @@ typedef struct
 ThreadArgs *thread_args;
 
 double **allocateMatrix();
-void printResult(int current_matrix);
+void saveResult(int current_matrix);
 void *mm(void *data);
 
 int main(int argc, char *argv[])
@@ -138,10 +138,16 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Guardar resultado en un archivo .txt solo en modo debug
 #ifdef DEBUG_MODE
-    for (k = 0; k < nmats; k++)
+    // Remover el archivo result.txt si existe
+    char filename[50];
+    sprintf(filename, "check_data/result_finegrain.txt");
+    remove(filename);
+
+    for (t = 0; t < nmats; t++)
     {
-        printResult(k);
+        saveResult(t);
     }
 #endif
 
@@ -175,22 +181,27 @@ double **allocateMatrix()
     return temp;
 }
 
-void printResult(int current_matrix)
+void saveResult(int current_matrix)
 {
-    int i, k;
-
-    pthread_mutex_lock(&mutex);
-    double **c = thread_args[current_matrix].c;
-    for (k = 0; k < matrixSize; k++)
+    char filename[50];
+    sprintf(filename, "check_data/result_finegrain.txt");
+    FILE *fh = fopen(filename, "a");
+    if (fh == NULL)
     {
-        for (i = 0; i < matrixSize; i++)
-        {
-            printf("%lf ", c[k][i]);
-        }
-        printf("\n");
+        printf("Error opening file %s\n", filename);
+        exit(1);
     }
-    printf("\n");
-    pthread_mutex_unlock(&mutex);
+
+    for (int i = 0; i < matrixSize; i++)
+    {
+        for (int j = 0; j < matrixSize; j++)
+        {
+            fprintf(fh, "%f ", thread_args[current_matrix].c[i][j]);
+        }
+        fprintf(fh, "\n");
+    }
+
+    fclose(fh);
 }
 
 void *mm(void *data)

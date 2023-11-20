@@ -3,7 +3,7 @@
 #include <time.h>
 #include <pthread.h>
 
-// #define DEBUG_MODE
+#define DEBUG_MODE
 
 static pthread_mutex_t mutex;
 
@@ -65,6 +65,13 @@ int main(int argc, char *argv[])
     {
         nthreads = nmats;
     }
+
+#ifdef DEBUG_MODE
+    // Remover el archivo result.txt si existe
+    char filename[50];
+    sprintf(filename, "check_data/result_coarsegrain.txt");
+    remove(filename);
+#endif
 
     pthread_t threads[nthreads];
     int rc;
@@ -197,19 +204,27 @@ void *mm(void *data)
             }
         }
 
-// Show the result of the multiplication in debug mode
+        // Guardar resultado en un archivo .txt solo en modo debug
 #ifdef DEBUG_MODE
-        pthread_mutex_lock(&mutex);
+        char filename[50];
+        sprintf(filename, "check_data/result_coarsegrain.txt");
+        FILE *fh = fopen(filename, "a");
+        if (fh == NULL)
+        {
+            printf("Error opening file %s\n", filename);
+            exit(1);
+        }
+
         for (i = 0; i < matrixSize; i++)
         {
             for (j = 0; j < matrixSize; j++)
             {
-                printf("%lf ", c[i][j]);
+                fprintf(fh, "%lf ", c[i][j]);
             }
-            printf("\n");
+            fprintf(fh, "\n");
         }
-        printf("\n");
-        pthread_mutex_unlock(&mutex);
+
+        fclose(fh);
 #endif
     }
 
