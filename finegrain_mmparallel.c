@@ -56,10 +56,8 @@ int main(int argc, char *argv[])
 
     fscanf(fh, "%d %d\n", &nmats, &matrixSize);
 
-// Mostrar numero de matrices y tamaño solo en modo debug
 #ifdef DEBUG_MODE
-    printf("Number of matrices: %d\n", nmats);
-    printf("Matrix size: %d\n", matrixSize);
+    printf("Grano FINO en modo DEBUG\n");
 #endif
 
     if (nthreads > nmats)
@@ -140,6 +138,9 @@ int main(int argc, char *argv[])
 
     // Guardar resultado en un archivo .txt solo en modo debug
 #ifdef DEBUG_MODE
+    // Crear la carpeta check_data si no existe
+    system("mkdir -p check_data");
+
     // Remover el archivo result.txt si existe
     char filename[50];
     sprintf(filename, "check_data/result_finegrain.txt");

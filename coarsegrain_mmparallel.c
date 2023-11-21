@@ -27,6 +27,7 @@ ThreadArgs *thread_args;
 
 double **allocateMatrix();
 void *mm(void *data);
+void saveResult(int current_matrix);
 
 int main(int argc, char *argv[])
 {
@@ -55,23 +56,14 @@ int main(int argc, char *argv[])
 
     fscanf(fh, "%d %d\n", &nmats, &matrixSize);
 
-// Mostrar numero de matrices y tamaño solo en modo debug
 #ifdef DEBUG_MODE
-    printf("Number of matrices: %d\n", nmats);
-    printf("Matrix size: %d\n", matrixSize);
+    printf("Grano GRUESO en modo DEBUG\n");
 #endif
 
     if (nthreads > nmats)
     {
         nthreads = nmats;
     }
-
-#ifdef DEBUG_MODE
-    // Remover el archivo result.txt si existe
-    char filename[50];
-    sprintf(filename, "check_data/result_coarsegrain.txt");
-    remove(filename);
-#endif
 
     pthread_t threads[nthreads];
     int rc;
@@ -143,6 +135,22 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Guardar resultado en un archivo .txt solo en modo debug
+#ifdef DEBUG_MODE
+    // Crear la carpeta check_data si no existe
+    system("mkdir -p check_data");
+
+    // Remover el archivo result.txt si existe
+    char filename[50];
+    sprintf(filename, "check_data/result_coarsegrain.txt");
+    remove(filename);
+
+    for (t = 0; t < nmats; t++)
+    {
+        saveResult(t);
+    }
+#endif
+
     // Free memory
     free(thread_args);
 
@@ -204,29 +212,34 @@ void *mm(void *data)
             }
         }
 
-        // Guardar resultado en un archivo .txt solo en modo debug
-#ifdef DEBUG_MODE
-        char filename[50];
-        sprintf(filename, "check_data/result_coarsegrain.txt");
-        FILE *fh = fopen(filename, "a");
-        if (fh == NULL)
-        {
-            printf("Error opening file %s\n", filename);
-            exit(1);
-        }
-
-        for (i = 0; i < matrixSize; i++)
-        {
-            for (j = 0; j < matrixSize; j++)
-            {
-                fprintf(fh, "%lf ", c[i][j]);
-            }
-            fprintf(fh, "\n");
-        }
-
-        fclose(fh);
-#endif
+        // Guardar resultado en la estructura global thread_args
+        pthread_mutex_lock(&mutex);
+        thread_args[x].c = c;
+        pthread_mutex_unlock(&mutex);
     }
 
-    pthread_exit(NULL);
+    return NULL;
+}
+
+void saveResult(int current_matrix)
+{
+    char filename[50];
+    sprintf(filename, "check_data/result_coarsegrain.txt");
+    FILE *fh = fopen(filename, "a");
+    if (fh == NULL)
+    {
+        printf("Error opening file %s\n", filename);
+        exit(1);
+    }
+
+    for (int i = 0; i < matrixSize; i++)
+    {
+        for (int j = 0; j < matrixSize; j++)
+        {
+            fprintf(fh, "%f ", thread_args[current_matrix].c[i][j]);
+        }
+        fprintf(fh, "\n");
+    }
+
+    fclose(fh);
 }

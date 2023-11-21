@@ -76,12 +76,16 @@ int main(int argc, char *argv[])
 	char *fname = "matrices_large.dat"; // Change to matrices_large.dat for performance evaluation
 	FILE *fh;
 
-	// printf("Start\n");
 	fh = fopen(fname, "r");
 	// First line indicates how many pairs of matrices there are and the matrix size
 	fscanf(fh, "%d %d\n", &nmats, &matrixSize);
 
 #ifdef DEBUG_MODE
+	printf("SECUENCIAL en modo DEBUG\n");
+
+	// Crear la carpeta check_data si no existe
+	system("mkdir -p check_data");
+
 	// Remover el archivo result.txt si existe
 	char filename[50];
 	sprintf(filename, "check_data/check.txt");

@@ -1,8 +1,13 @@
 import numpy as np
 
-check = np.loadtxt("check_data/check.txt")
-coarsegrain = np.loadtxt("check_data/result_coarsegrain.txt")
-finegrain = np.loadtxt("check_data/result_finegrain.txt")
+# Verifica si los archivos check, coarsegrain y finegrain existen
+try:
+    check = np.loadtxt("check_data/check.txt")
+    coarsegrain = np.loadtxt("check_data/result_coarsegrain.txt")
+    finegrain = np.loadtxt("check_data/result_finegrain.txt")
+except:
+    print("No se encontró el archivo check.txt, result_coarsegrain.txt o result_finegrain.txt")
+    exit()
 
 # Verifica si check y coarsegrain son exactamente iguales
 if np.array_equal(check, coarsegrain):
