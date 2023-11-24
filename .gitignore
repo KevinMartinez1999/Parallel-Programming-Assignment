@@ -1,24 +1,9 @@
-# VSCode files
-.vscode/
-
-# C/C++ compiled files
-*.out
-*.o
-*.a
-
-# Compiled
-coarsegrain_mmparallel
-finegrain_mmparallel
-matmulseq_file
-
-# Compiled
-*.exe
-*.so
-*.dll
-*.pyc
-
-# Figures
+# Carpetas
+.vscode
+check_data/
 figures/
 
-# Check data
-check_data/
+# Compilados
+matmul_seq
+matmul_coarsegrain
+matmul_finegrain

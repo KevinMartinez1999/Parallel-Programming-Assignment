@@ -1,14 +1,17 @@
+/**
+ * Matrix multiplication (coarse-grain) using pthreads
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <pthread.h>
+#include <sys/time.h>
 
-#define DEBUG_MODE
-
-static pthread_mutex_t mutex;
+// #define DEBUG_MODE
 
 int matrixSize;
 
+// Structure for thread arguments
 typedef struct
 {
     double **a;
@@ -16,6 +19,7 @@ typedef struct
     double **c;
 } ThreadArgs;
 
+// Structure for thread ranges
 typedef struct
 {
     int thread_id;
@@ -23,28 +27,35 @@ typedef struct
     int end;
 } ThreadRange;
 
+// Global variables
 ThreadArgs *thread_args;
 
+// Function prototypes
 double **allocateMatrix();
 void *mm(void *data);
 void saveResult(int current_matrix);
 
 int main(int argc, char *argv[])
 {
+    // Check the number of command-line arguments
     if (argc != 2)
     {
         printf("Usage: %s <matrix_size>\n", argv[0]);
         exit(1);
     }
 
+    // Get the matrix size
     char *param = argv[1];
     int nthreads = atoi(param);
 
-    clock_t start = clock();
+    // Get the start time
+    struct timeval start_time, end_time;
+    gettimeofday(&start_time, NULL);
 
+    // Read the matrices from file
     int i, j;
     int nmats;
-    char *fname = "matrices_large.dat";
+    char *fname = "../dat_files/matrices_large.dat";
     FILE *fh;
 
     fh = fopen(fname, "r");
@@ -60,20 +71,25 @@ int main(int argc, char *argv[])
     printf("Grano GRUESO en modo DEBUG\n");
 #endif
 
+    // Limit the number of threads to the number of matrices
     if (nthreads > nmats)
     {
         nthreads = nmats;
     }
 
+    // Create an array of threads
     pthread_t threads[nthreads];
     int rc;
     long t;
 
+    // Create thread arguments
     ThreadRange thread_ranges[nthreads];
     thread_args = (ThreadArgs *)malloc(sizeof(ThreadArgs) * nmats);
 
+    // Read the matrices from file
     for (t = 0; t < nmats; t++)
     {
+        // Allocate memory for matrices
         double **a = allocateMatrix();
         double **b = allocateMatrix();
         double **c = allocateMatrix();
@@ -94,28 +110,35 @@ int main(int argc, char *argv[])
             }
         }
 
+        // Save the matrices in the thread arguments
         thread_args[t].a = a;
         thread_args[t].b = b;
         thread_args[t].c = c;
     }
 
+    // Close the file
     fclose(fh);
 
+    // Calculate the number of operations per thread
     int n_op_per_thread = nmats / nthreads;
     int op_remainder = nmats % nthreads;
 
-    // Create threads
+    // Create threads and assign tasks
     for (t = 0; t < nthreads; t++)
     {
+        // Assign tasks to threads
         thread_ranges[t].thread_id = t;
         thread_ranges[t].start = t * n_op_per_thread;
         thread_ranges[t].end = (t + 1) * n_op_per_thread - 1;
 
-        if (t == nthreads - 1)
+        // Assign the remainder to the first threads
+        if (op_remainder > 0)
         {
-            thread_ranges[t].end += op_remainder;
+            thread_ranges[t].end++;
+            op_remainder--;
         }
 
+        // Create threads and pass arguments
         rc = pthread_create(&threads[t], NULL, mm, (void *)&thread_ranges[t]);
         if (rc)
         {
@@ -124,7 +147,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Join threads
+    // Join threads and wait until they complete
     for (t = 0; t < nthreads; t++)
     {
         rc = pthread_join(threads[t], NULL);
@@ -135,16 +158,17 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Guardar resultado en un archivo .txt solo en modo debug
+    // Save the result in a file
 #ifdef DEBUG_MODE
-    // Crear la carpeta check_data si no existe
+    // Create the directory check_data
     system("mkdir -p check_data");
 
-    // Remover el archivo result.txt si existe
+    // Remove the file if it already exists
     char filename[50];
     sprintf(filename, "check_data/result_coarsegrain.txt");
     remove(filename);
 
+    // Save the result in a file
     for (t = 0; t < nmats; t++)
     {
         saveResult(t);
@@ -154,8 +178,12 @@ int main(int argc, char *argv[])
     // Free memory
     free(thread_args);
 
-    clock_t end = clock();
-    double elapsed_time = ((double)(end - start)) * 1000.0 / CLOCKS_PER_SEC;
+    // Get the end time
+    gettimeofday(&end_time, NULL);
+
+    // Print the elapsed time
+    double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000.0 +
+                          (end_time.tv_usec - start_time.tv_usec) / 1000.0;
     printf("%f\n", elapsed_time);
 
     pthread_exit(NULL);
@@ -191,11 +219,9 @@ void *mm(void *data)
 
     for (x = thread_range->start; x <= thread_range->end; x++)
     {
-        pthread_mutex_lock(&mutex);
         double **a = thread_args[x].a;
         double **b = thread_args[x].b;
         double **c = thread_args[x].c;
-        pthread_mutex_unlock(&mutex);
 
         // matrix multiplication
         for (i = 0; i < matrixSize; i++)
@@ -211,14 +237,7 @@ void *mm(void *data)
                 c[i][j] = sum;
             }
         }
-
-        // Guardar resultado en la estructura global thread_args
-        pthread_mutex_lock(&mutex);
-        thread_args[x].c = c;
-        pthread_mutex_unlock(&mutex);
     }
-
-    return NULL;
 }
 
 void saveResult(int current_matrix)

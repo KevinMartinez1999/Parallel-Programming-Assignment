@@ -1,14 +1,22 @@
-// Matrix multiplication
-
+/**
+ * @file matmul_seq.c
+ * @brief This file contains the sequential implementation of matrix multiplication.
+ */
+#include <stdio.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <sys/time.h>
 
-#define DEBUG_MODE
+// #define DEBUG_MODE
 
 double **a, **b, **c;
 int matrixSize;
 
+/**
+ * @brief Allocates memory for a matrix.
+ *
+ * @return double** Pointer to the allocated matrix.
+ */
 double **allocateMatrix()
 {
 	int i;
@@ -26,6 +34,14 @@ double **allocateMatrix()
 	return temp;
 }
 
+/**
+ * @brief Performs matrix multiplication.
+ *
+ * This function performs matrix multiplication using a sequential algorithm.
+ *
+ * @param None
+ * @return None
+ */
 void mm(void)
 {
 	int i, j, k;
@@ -45,6 +61,12 @@ void mm(void)
 		}
 	}
 }
+
+/**
+ * @brief Saves the result of the matrix multiplication to a file.
+ *
+ * @return None
+ */
 void saveResult(void)
 {
 	char filename[50];
@@ -68,12 +90,20 @@ void saveResult(void)
 	fclose(fh);
 }
 
-int main(int argc, char *argv[])
+/**
+ * @brief Main function.
+ *
+ * @param argc Number of arguments.
+ * @param argv Array of arguments.
+ * @return int 0 if successful.
+ */
+int main(void)
 {
-	clock_t start = clock();
+	struct timeval start_time, end_time;
+	gettimeofday(&start_time, NULL);
 	int i, j, k;
 	int nmats;
-	char *fname = "matrices_large.dat"; // Change to matrices_large.dat for performance evaluation
+	char *fname = "../dat_files/matrices_large.dat"; // Change to matrices_large.dat for performance evaluation
 	FILE *fh;
 
 	fh = fopen(fname, "r");
@@ -123,9 +153,10 @@ int main(int argc, char *argv[])
 	}
 	fclose(fh);
 
-	clock_t end = clock();
-	double elapsed_time = ((double)(end - start)) * 1000.0 / CLOCKS_PER_SEC;
-	// printf("Tiempo de ejecución: %f milisegundos\n", elapsed_time);
+	gettimeofday(&end_time, NULL);
+	// Calcula la diferencia de tiempo en milisegundos
+	double elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000.0 +
+						  (end_time.tv_usec - start_time.tv_usec) / 1000.0;
 	printf("%f\n", elapsed_time);
 
 	// Free memory
