@@ -90,8 +90,9 @@ def main():
         start = t * n_op_per_thread 
         end = (t + 1) * n_op_per_thread  - 1
 
-        if t == num_workers - 1:
-            end += op_remainder
+        if op_remainder > 0:
+            end += 1
+            op_remainder -= 1
 
         # Crear un hilo para cada rango de multiplicaciones de matrices
         args = (matrices, matrix_size, start, end, result_matrices)

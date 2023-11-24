@@ -2,6 +2,7 @@
 .vscode
 check_data/
 figures/
+database/
 
 # Compilados
 matmul_seq
